@@ -1,0 +1,9 @@
+# Ignore the build directory
+/build
+
+#Ignore ds_store
+.DS_Store
+.vscode
+
+# Ignore any files with the .exe extensions
+*.exe
