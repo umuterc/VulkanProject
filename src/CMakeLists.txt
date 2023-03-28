@@ -8,6 +8,7 @@ target_include_directories(${CMAKE_PROJECT_NAME}
     PUBLIC "./"
     ${CMAKE_SOURCE_DIR}/externals/glfw/include
     ${CMAKE_SOURCE_DIR}/externals/glm/include
+    ${CMAKE_SOURCE_DIR}/assets
 )
 find_package(Vulkan REQUIRED)
 
