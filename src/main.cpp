@@ -573,6 +573,32 @@ class HelloTriangeApplication{
                 throw std::runtime_error("failed to create pipeline layout!");
             }
 
+            VkGraphicsPipelineCreateInfo pipelineInfo{};
+            {
+                pipelineInfo.sType=VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+                pipelineInfo.stageCount=2; //# of used programmable stages (here vertex shader and fragment shader)
+                pipelineInfo.pStages=shaderStages;
+                pipelineInfo.pVertexInputState=&vertexInputInfo;
+                pipelineInfo.pInputAssemblyState=&inputAssambly;
+                pipelineInfo.pViewportState=&viewportState;
+                pipelineInfo.pRasterizationState=&rasterizer;
+                pipelineInfo.pMultisampleState=&multisampling;
+                pipelineInfo.pDepthStencilState=nullptr;
+                pipelineInfo.pColorBlendState=&colorBlending;
+                pipelineInfo.pDynamicState=&dynamicState;
+                pipelineInfo.layout=pipelineLayout;
+                pipelineInfo.renderPass=renderPass;
+                pipelineInfo.subpass=0; //describes the index of the subpass where this graphics pipeline will be used
+
+                pipelineInfo.basePipelineHandle=VK_NULL_HANDLE; //not inherited from a base pipeline
+                pipelineInfo.basePipelineIndex=-1;              //not inherited from a base pipeline
+
+            }
+
+            if(vkCreateGraphicsPipelines(device,VK_NULL_HANDLE,1,&pipelineInfo,nullptr,&graphicsPipeline)!=VK_SUCCESS){
+                throw std::runtime_error("failed to create graphics pipeline!");
+            }
+
             vkDestroyShaderModule(device,vertShaderModule,nullptr);
             vkDestroyShaderModule(device,fragShaderModule,nullptr);
          }
@@ -655,13 +681,14 @@ class HelloTriangeApplication{
 
         void cleanup(){
 
+            vkDestroyPipeline(device,graphicsPipeline,nullptr);
             vkDestroyPipelineLayout(device,pipelineLayout,nullptr);
             vkDestroyRenderPass(device,renderPass,nullptr);
 
             for(auto imageView: swapChainImageViews){
                 vkDestroyImageView(device,imageView,nullptr);
             }
-            
+
             vkDestroySwapchainKHR(device,swapChain,nullptr);
             vkDestroyDevice(device,nullptr);
             vkDestroySurfaceKHR(instance,surface,nullptr);
@@ -714,6 +741,8 @@ class HelloTriangeApplication{
 
         VkRenderPass renderPass;
         VkPipelineLayout pipelineLayout;
+
+        VkPipeline graphicsPipeline;
 
         std::vector<VkImageView> swapChainImageViews;
 
