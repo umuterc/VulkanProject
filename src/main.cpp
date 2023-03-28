@@ -33,6 +33,7 @@ class HelloTriangeApplication{
             createImageViews();
             createRenderPass();
             createGraphicsPipeline();
+            createFrameBuffers();
         }
 
         void createInstance(){
@@ -645,6 +646,7 @@ class HelloTriangeApplication{
         }
 
         VkShaderModule createShaderModule(const std::vector<char>& code){
+
             VkShaderModuleCreateInfo createInfo{};
             {
                 createInfo.sType=VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -680,6 +682,10 @@ class HelloTriangeApplication{
         }
 
         void cleanup(){
+            
+            for (auto framebuffer : swapChainFrameBuffers) {
+                vkDestroyFramebuffer(device, framebuffer, nullptr);
+            }
 
             vkDestroyPipeline(device,graphicsPipeline,nullptr);
             vkDestroyPipelineLayout(device,pipelineLayout,nullptr);
@@ -698,6 +704,34 @@ class HelloTriangeApplication{
             glfwTerminate();
         }
 
+        void createFrameBuffers(){
+                swapChainFrameBuffers.resize(swapChainImageViews.size());
+
+                for(size_t i=0;i<swapChainImageViews.size();++i ){
+
+                    VkImageView attachments[]={
+                        swapChainImageViews[i]
+                    };
+
+                    VkFramebufferCreateInfo frameBufferInfo{};
+                    {
+                        frameBufferInfo.sType=VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+                        frameBufferInfo.renderPass=renderPass;
+                        frameBufferInfo.attachmentCount=1;
+                        frameBufferInfo.pAttachments= attachments;
+                        frameBufferInfo.width=swapChainExtent.width;
+                        frameBufferInfo.height=swapChainExtent.height;
+                        frameBufferInfo.layers=1; //number of layers in image arrays
+                    }
+                    if(vkCreateFramebuffer(device,&frameBufferInfo,nullptr,&swapChainFrameBuffers[i])!=VK_SUCCESS){
+
+                        throw std::runtime_error("failed to create frame buffer!");
+                    }
+                }
+
+
+
+        }
         bool checkValidationLayerSupport(){
 
             uint32_t layerCount;
@@ -745,6 +779,7 @@ class HelloTriangeApplication{
         VkPipeline graphicsPipeline;
 
         std::vector<VkImageView> swapChainImageViews;
+        std::vector<VkFramebuffer> swapChainFrameBuffers;
 
         const std::vector<const char*> deviceExtensions={
             VK_KHR_SWAPCHAIN_EXTENSION_NAME
