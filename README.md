@@ -11,6 +11,12 @@ This is a project that follows the [Vulkan Tutorial](https://vulkan-tutorial.com
 - [GLM](https://glm.g-truc.net/) library (included as a submodule)
 - [CMake](https://cmake.org/) (version 3.12 or later)
 
+Note:For vulkan sdk setup on MacOS:
+
+  1. Download vulkan sdk downloader.
+  2. Setup vulkan sdk.
+  3. After setup open the vulkan sdk folder on terminal and run the install_vulkan.py (I assume it will handle setting the path variable.)
+  
 Note: The GLFW and GLM libraries are included as submodules in this repository. After cloning this repository, you'll need to run the following commands to initialize the submodules:
 
 ```
