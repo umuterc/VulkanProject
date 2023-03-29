@@ -70,7 +70,8 @@ That's it! You should now have a working Vulkan application. If you run into any
 
 ## Resources
 
-- [Vulkan Tutorial](https://vulkan-tutorial.com) - The official Vulkan tutorial website.
-- [Vulkan API Documentation](https://www.khronos.org/registry/vulkan/) - The official Vulkan API documentation.
+- [Vulkan Tutorial](https://vulkan-tutorial.com) - Vulkan tutorial website.
+- [Vulkan API Specification](https://www.vulkan.org/learn#key-resources) - The official Vulkan API documentation.
+- [Vulkan Guide](https://github.com/KhronosGroup/Vulkan-Guide?utm_source=DevRel&utm_medium=KHRhomepage&utm_campaign=Vulkan_Guide) - Vulkan guide github repository.
 - [GLFW Documentation](https://www.glfw.org/docs/latest/) - The official GLFW documentation.
 - [GLM Documentation](https://glm.g-truc.net/0.9.9/index.html) - The official GLM documentation.
