@@ -53,5 +53,24 @@ cmake -DCMAKE_CXX_COMPILER=path/to/compiler ..
 
 That's it! You should now have a working Vulkan application. If you run into any issues, please consult the [Vulkan Tutorial website](https://vulkan-tutorial.com/) or create a new issue in the GitHub repository.
 
+## Progress
 
+- [x] Introduction to Vulkan and Setup
+- [x] Instance Creation
+- [x] Physical Devices and Queue Families
+- [x] Logical Device and Queues
+- [x] Window Surface
+- [x] Swap Chain
+- [x] Image Views
+- [x] Graphics Pipeline Basics
+- [x] Vertex Input Description
+- [x] Shader Modules
+- [x] Fixed Functions
+- [x] Drawing Triangle
 
+## Resources
+
+- [Vulkan Tutorial](https://vulkan-tutorial.com) - The official Vulkan tutorial website.
+- [Vulkan API Documentation](https://www.khronos.org/registry/vulkan/) - The official Vulkan API documentation.
+- [GLFW Documentation](https://www.glfw.org/docs/latest/) - The official GLFW documentation.
+- [GLM Documentation](https://glm.g-truc.net/0.9.9/index.html) - The official GLM documentation.
