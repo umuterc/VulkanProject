@@ -64,8 +64,6 @@ class HelloTriangleApplication{
 
             //required vulkan extentions for glfw implementation
             glfwExtensions=glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
-            createInfo.enabledExtensionCount=glfwExtensionCount;
-            createInfo.ppEnabledExtensionNames=glfwExtensions;
             
             std::vector<const char*> requiredExtensions;
 
@@ -74,23 +72,14 @@ class HelloTriangleApplication{
             }
 
             requiredExtensions.emplace_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+            requiredExtensions.emplace_back("VK_KHR_get_physical_device_properties2");
 
             createInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
 
             createInfo.enabledExtensionCount = (uint32_t) requiredExtensions.size();
             createInfo.ppEnabledExtensionNames = requiredExtensions.data();
 
-            //will be used in global validation layer
-            if(enableValidationLayers){
-
-                createInfo.enabledLayerCount=static_cast<uint32_t>(validationLayers.size());
-                createInfo.ppEnabledLayerNames=validationLayers.data();
-            }
-            else{
-                createInfo.enabledLayerCount=0;
-            }
-
-            if(vkCreateInstance(&createInfo,nullptr,&instance)!=VK_SUCCESS){
+            if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS) {
                 throw std::runtime_error("failed to create instance!");
             }
         }
@@ -471,7 +460,6 @@ class HelloTriangleApplication{
 
          void createGraphicsPipeline(){
             namespace fs = std::filesystem;
-            std::cout << "Current path is " << fs::current_path() << '\n'; // (1)
 
             //read compiled shader code
             auto vertShaderCode = readFile("../../assets/shaders/vert.spv"); //TODO: Instead give the assets path to the cmake
@@ -1004,10 +992,9 @@ class HelloTriangleApplication{
         uint32_t currentFrame = 0;
 
         const std::vector<const char*> deviceExtensions={
-            VK_KHR_SWAPCHAIN_EXTENSION_NAME
+            VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+            "VK_KHR_portability_subset"
         };
-
-
 
         const std::vector<const char*> validationLayers = {
             "VK_LAYER_KHRONOS_validation"
