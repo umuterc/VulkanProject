@@ -408,6 +408,12 @@ class HelloTriangleApplication{
 
         // In case of window resize the swapchain is becoming incompatible so it needs to be recreated.
         void recreateSwapChain(){
+            int width = 0, height = 0;
+            glfwGetFramebufferSize(window, &width, &height);
+            while (width == 0 || height == 0) {
+                glfwGetFramebufferSize(window, &width, &height);
+                glfwWaitEvents();
+            }
             vkDeviceWaitIdle(device);
 
             cleanUpSwapChain();
