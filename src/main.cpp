@@ -12,7 +12,7 @@
 #include<fstream>
 #include<filesystem>
 
-class HelloTriangeApplication{
+class HelloTriangleApplication{
 
     public:
         void run(){
@@ -301,7 +301,6 @@ class HelloTriangeApplication{
 
             }
             return VK_PRESENT_MODE_FIFO_KHR;
-
         }
 
         VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities){
@@ -393,6 +392,29 @@ class HelloTriangeApplication{
             swapChainImageFormat=surfaceFormat.format;
             swapChainExtent=extent;
          }
+
+        void cleanUpSwapChain(){
+             for (auto framebuffer : swapChainFrameBuffers) {
+                vkDestroyFramebuffer(device, framebuffer, nullptr);
+            }
+
+            for(auto imageView: swapChainImageViews){
+                vkDestroyImageView(device,imageView,nullptr);
+            }
+
+            vkDestroySwapchainKHR(device,swapChain,nullptr);
+
+        }
+
+        // In case of window resize the swapchain is becoming incompatible so it needs to be recreated.
+        void recreateSwapChain(){
+            vkDeviceWaitIdle(device);
+
+            cleanUpSwapChain();
+            createSwapChain();
+            createImageViews();
+
+        }
 
          void createImageViews(){
             swapChainImageViews.resize(swapChainImages.size());
@@ -809,7 +831,14 @@ class HelloTriangeApplication{
             glfwWindowHint(GLFW_RESIZABLE,GLFW_FALSE);
 
             window= glfwCreateWindow(WIDTH,HEIGHT,"Vulkan",nullptr,nullptr);
+            glfwSetWindowUserPointer(window,this); // idk why
+            glfwSetFramebufferSizeCallback(window,frameBufferResizeCallback);
 
+        }
+
+        static void frameBufferResizeCallback(GLFWwindow* window, int width,int height){
+            auto app = reinterpret_cast<HelloTriangleApplication*>(glfwGetWindowUserPointer(window));
+            app->frameBufferResized = true;
         }
 
         void mainLoop(){
@@ -823,10 +852,19 @@ class HelloTriangeApplication{
         void drawFrame(){
 
             vkWaitForFences(device,1,&inFlightfences[currentFrame],VK_TRUE,UINT64_MAX); // wait for the previous frame
-            vkResetFences(device,1,&inFlightfences[currentFrame]);
 
             uint32_t imageIdx;
-            vkAcquireNextImageKHR(device,swapChain,UINT64_MAX,imageAvailableSemaphores[currentFrame],VK_NULL_HANDLE,&imageIdx);
+            VkResult result = vkAcquireNextImageKHR(device,swapChain,UINT64_MAX,imageAvailableSemaphores[currentFrame],VK_NULL_HANDLE,&imageIdx);
+
+            if(result==VK_ERROR_OUT_OF_DATE_KHR){
+                recreateSwapChain();
+            }
+            else if(result!=VK_SUCCESS && result!=VK_SUBOPTIMAL_KHR){
+                throw std::runtime_error("failed to acquire swapchain image!");
+            }
+
+            // Only reset the fence if we are submitting work
+            vkResetFences(device, 1, &inFlightfences[currentFrame]);
 
             vkResetCommandBuffer(commandBuffers[currentFrame],0);// to bring the commandbuffer to the initial state. If command buffer is in the pending command buffer cannot be recorded.
             recordCommanbuffer(commandBuffers[currentFrame],imageIdx);
@@ -865,34 +903,31 @@ class HelloTriangeApplication{
                 presentInfo.pResults=nullptr;
             }
 
-            vkQueuePresentKHR(graphicsQueue,&presentInfo);
+            result = vkQueuePresentKHR(graphicsQueue,&presentInfo);
 
+            if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || frameBufferResized) {
+                frameBufferResized=false;
+                recreateSwapChain();
+            } else if (result != VK_SUCCESS) {
+                throw std::runtime_error("failed to present swap chain image!");
+            }
             currentFrame=(currentFrame+1)%MAX_FRAMES_IN_FLIGHT;
 
         }
 
         void cleanup(){
-            
+
+            cleanUpSwapChain();
+
             for(size_t i=0; i<MAX_FRAMES_IN_FLIGHT;++i){
                 vkDestroySemaphore(device,imageAvailableSemaphores[i],nullptr);
                 vkDestroySemaphore(device,renderFinishedSemaphores[i],nullptr);
                 vkDestroyFence(device,inFlightfences[i],nullptr);
             }
-
             vkDestroyCommandPool(device,commandPool,nullptr);
-            for (auto framebuffer : swapChainFrameBuffers) {
-                vkDestroyFramebuffer(device, framebuffer, nullptr);
-            }
-
             vkDestroyPipeline(device,graphicsPipeline,nullptr);
             vkDestroyPipelineLayout(device,pipelineLayout,nullptr);
             vkDestroyRenderPass(device,renderPass,nullptr);
-
-            for(auto imageView: swapChainImageViews){
-                vkDestroyImageView(device,imageView,nullptr);
-            }
-
-            vkDestroySwapchainKHR(device,swapChain,nullptr);
             vkDestroyDevice(device,nullptr);
             vkDestroySurfaceKHR(instance,surface,nullptr);
             vkDestroyInstance(instance,nullptr);
@@ -957,7 +992,8 @@ class HelloTriangeApplication{
         std::vector<VkSemaphore> imageAvailableSemaphores;
         std::vector<VkSemaphore> renderFinishedSemaphores;
         std::vector<VkFence> inFlightfences;
-
+        
+        bool frameBufferResized=false;
         const int MAX_FRAMES_IN_FLIGHT = 2;
         uint32_t currentFrame = 0;
 
@@ -983,7 +1019,7 @@ class HelloTriangeApplication{
 
 
 int main() {
-    HelloTriangeApplication app;
+    HelloTriangleApplication app;
 
     try{
         app.run();
