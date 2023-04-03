@@ -408,6 +408,7 @@ class HelloTriangleApplication{
             cleanUpSwapChain();
             createSwapChain();
             createImageViews();
+            createFrameBuffers();
 
         }
 
