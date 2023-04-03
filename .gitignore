@@ -8,3 +8,7 @@
 # Ignore any files with the .exe extensions
 *.exe
 *.spv
+
+#Ignore ongoing code refactoring work
+src/Window.cpp
+src/Window.hpp
