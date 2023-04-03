@@ -817,16 +817,25 @@ class HelloTriangleApplication{
 
         }
 
+        static void errorCallback(int error, const char* description){
+            std::cerr << "GLFW Error: " << description << std::endl;
+        }
+        
         void initWindow(){
+            
+            glfwSetErrorCallback(errorCallback);
 
-            glfwInit();
-
+            if (!glfwInit())
+            {
+                std::cerr << "Failed to initialize GLFW" << std::endl;
+                return;
+            }
             glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-            glfwWindowHint(GLFW_RESIZABLE,GLFW_FALSE);
 
             window= glfwCreateWindow(WIDTH,HEIGHT,"Vulkan",nullptr,nullptr);
             glfwSetWindowUserPointer(window,this); // idk why
             glfwSetFramebufferSizeCallback(window,frameBufferResizeCallback);
+            glfwSetWindowCloseCallback(window,windowCloseCallback);
 
         }
 
@@ -835,10 +844,16 @@ class HelloTriangleApplication{
             app->frameBufferResized = true;
         }
 
+        static void windowCloseCallback(GLFWwindow* window)
+        {
+            // Set the window should close flag
+            glfwSetWindowShouldClose(window, GLFW_TRUE);
+        }
+
         void mainLoop(){
             while(!glfwWindowShouldClose(window)){
-                glfwPollEvents();
                 drawFrame();
+                glfwPollEvents();
             }
              vkDeviceWaitIdle(device);
         }
@@ -880,7 +895,7 @@ class HelloTriangleApplication{
                 submitInfo.pSignalSemaphores=signalSemaphores;
             }
 
-            if(vkQueueSubmit(graphicsQueue,1,&submitInfo,VK_NULL_HANDLE)!=VK_SUCCESS){
+            if(vkQueueSubmit(graphicsQueue,1,&submitInfo,inFlightfences[currentFrame])!=VK_SUCCESS){
                 throw std::runtime_error("failed to submit draw command buffer!");
             }
 
