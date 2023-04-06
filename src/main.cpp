@@ -12,11 +12,15 @@
 #include<fstream>
 #include<filesystem>
 
+#include"Window.hpp"
+
+namespace VulkanEngine{
+
 class HelloTriangleApplication{
 
     public:
         void run(){
-            initWindow();
+            //init window in window costructer
             initVulkan();
             mainLoop();
             cleanup();
@@ -86,7 +90,7 @@ class HelloTriangleApplication{
 
         void createSurface(){
 
-            if(glfwCreateWindowSurface(instance,window,nullptr,&surface)!=VK_SUCCESS){
+            if(window.createSurface(instance,&surface)!=VK_SUCCESS){
 
                 throw std::runtime_error("failed to create window surface!");
             }
@@ -301,13 +305,8 @@ class HelloTriangleApplication{
             else{
                 //Means we need to specify the values
 
-                int width,height;
-                glfwGetFramebufferSize(window,&width,&height);
-
-                VkExtent2D actualExtent={
-                    static_cast<uint32_t>(width),
-                    static_cast<uint32_t>(height)
-                };
+                window.fetchFrameBufferSize();// fetch the new frame buffer size
+                VkExtent2D actualExtent= window.getExtent(); //get the new extent
 
                 //clap the width height values within the extent capabilities of the system
                 actualExtent.width=std::clamp(actualExtent.width,capabilities.minImageExtent.width,capabilities.maxImageExtent.width);
@@ -397,10 +396,12 @@ class HelloTriangleApplication{
 
         // In case of window resize the swapchain is becoming incompatible so it needs to be recreated.
         void recreateSwapChain(){
-            int width = 0, height = 0;
-            glfwGetFramebufferSize(window, &width, &height);
-            while (width == 0 || height == 0) {
-                glfwGetFramebufferSize(window, &width, &height);
+            
+            window.fetchFrameBufferSize();
+            VkExtent2D extent=window.getExtent();
+            while (extent.width == 0 ||extent.height == 0) {
+                window.fetchFrameBufferSize();
+                extent=window.getExtent();
                 glfwWaitEvents();
             }
             vkDeviceWaitIdle(device);
@@ -818,41 +819,8 @@ class HelloTriangleApplication{
 
         }
 
-        static void errorCallback(int error, const char* description){
-            std::cerr << "GLFW Error: " << description << std::endl;
-        }
-        
-        void initWindow(){
-            
-            glfwSetErrorCallback(errorCallback);
-
-            if (!glfwInit())
-            {
-                std::cerr << "Failed to initialize GLFW" << std::endl;
-                return;
-            }
-            glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-
-            window= glfwCreateWindow(WIDTH,HEIGHT,"Vulkan",nullptr,nullptr);
-            glfwSetWindowUserPointer(window,this); // idk why
-            glfwSetFramebufferSizeCallback(window,frameBufferResizeCallback);
-            glfwSetWindowCloseCallback(window,windowCloseCallback);
-
-        }
-
-        static void frameBufferResizeCallback(GLFWwindow* window, int width,int height){
-            auto app = reinterpret_cast<HelloTriangleApplication*>(glfwGetWindowUserPointer(window));
-            app->frameBufferResized = true;
-        }
-
-        static void windowCloseCallback(GLFWwindow* window)
-        {
-            // Set the window should close flag
-            glfwSetWindowShouldClose(window, GLFW_TRUE);
-        }
-
         void mainLoop(){
-            while(!glfwWindowShouldClose(window)){
+            while(!window.windowShouldClose()){
                 drawFrame();
                 glfwPollEvents();
             }
@@ -941,9 +909,6 @@ class HelloTriangleApplication{
             vkDestroyDevice(device,nullptr);
             vkDestroySurfaceKHR(instance,surface,nullptr);
             vkDestroyInstance(instance,nullptr);
-
-            glfwDestroyWindow(window);
-            glfwTerminate();
         }
 
         bool checkValidationLayerSupport(){
@@ -971,9 +936,10 @@ class HelloTriangleApplication{
         }
 
         //WINDOW
-        GLFWwindow* window;
-        const uint32_t WIDTH=800;
-        const uint32_t HEIGHT=600;
+
+        const int WIDTH=800;
+        const int HEIGHT=600;
+        Window window{WIDTH,HEIGHT,"Vulkan_Refactor"};
 
         //VULKAN
         VkInstance instance;
@@ -1026,9 +992,10 @@ class HelloTriangleApplication{
 
 };
 
+}
 
 int main() {
-    HelloTriangleApplication app;
+    VulkanEngine::HelloTriangleApplication app;
 
     try{
         app.run();

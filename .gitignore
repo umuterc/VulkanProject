@@ -9,6 +9,3 @@
 *.exe
 *.spv
 
-#Ignore ongoing code refactoring work
-src/Window.cpp
-src/Window.hpp
