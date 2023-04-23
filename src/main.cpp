@@ -1,5 +1,6 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+#include<glm/glm.hpp>
 
 #include <iostream>
 #include<stdexcept>
@@ -11,6 +12,7 @@
 #include<limits>
 #include<fstream>
 #include<filesystem>
+#include<array>
 
 class HelloTriangleApplication{
 
@@ -35,6 +37,7 @@ class HelloTriangleApplication{
             createGraphicsPipeline();
             createFrameBuffers();
             createCommandPool();
+            createVertexBuffer();
             createCommandBuffers();
             createSyncObjects();
         }
@@ -191,7 +194,7 @@ class HelloTriangleApplication{
             }
             return indices;
         }
-
+    
         void createLogicalDevice(){
 
             QueueFamilyIndices indices= findQueueFamily(physicalDevice);
@@ -329,7 +332,6 @@ class HelloTriangleApplication{
             //we should not exceed maxImageCount limit if there is 
             //maxImageCount==0 is special value indicates there is no image limit
             if(swapChainSupport.capabilities.maxImageCount!=0 && imageCount > swapChainSupport.capabilities.maxImageCount){
-
                 imageCount= swapChainSupport.capabilities.maxImageCount;
             }
 
@@ -504,12 +506,15 @@ class HelloTriangleApplication{
 
             //Specify the vertex shader input data
             VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
-            {
+            {   
+                auto bindingDescription=Vertex::getBindingDescription();
+                auto attributeDescriptions=Vertex::getAttributeDescriptions();
+
                 vertexInputInfo.sType=VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-                vertexInputInfo.pVertexAttributeDescriptions=nullptr;
-                vertexInputInfo.vertexAttributeDescriptionCount=0;
-                vertexInputInfo.pVertexBindingDescriptions=nullptr;
-                vertexInputInfo.vertexBindingDescriptionCount=0;
+                vertexInputInfo.vertexBindingDescriptionCount=1;
+                vertexInputInfo.vertexAttributeDescriptionCount=attributeDescriptions.size();
+                vertexInputInfo.pVertexAttributeDescriptions=attributeDescriptions.data();
+                vertexInputInfo.pVertexBindingDescriptions=&bindingDescription;
             }
 
             //Specify how to draw the primitives
@@ -721,6 +726,57 @@ class HelloTriangleApplication{
                 }
         }
 
+        void createVertexBuffer(){
+            VkBufferCreateInfo bufferInfo{};
+            {   
+                bufferInfo.sType=VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+                bufferInfo.size=sizeof(vertices[0])*vertices.size();
+                bufferInfo.usage=VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+                bufferInfo.sharingMode=VK_SHARING_MODE_EXCLUSIVE;
+                bufferInfo.flags=0;
+            }
+            if(vkCreateBuffer(device,&bufferInfo,nullptr,&vertexBuffer)!=VK_SUCCESS){
+                throw std::runtime_error("failed to create vertex buffer!");
+            }
+
+            VkMemoryRequirements memRequirements;
+            vkGetBufferMemoryRequirements(device,vertexBuffer,&memRequirements);
+
+            VkMemoryAllocateInfo allocateInfo{};
+            {
+                allocateInfo.sType=VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+                allocateInfo.allocationSize=memRequirements.size;
+                allocateInfo.memoryTypeIndex=findMemoryType(memRequirements.memoryTypeBits,VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT); // @TODO: Test if cached is faster
+            }
+
+            if(vkAllocateMemory(device,&allocateInfo,nullptr,&vertexBufferMemory)!=VK_SUCCESS){
+                throw std::runtime_error("failed to allocate vertex buffer memory!");
+            }
+
+            vkBindBufferMemory(device,vertexBuffer,vertexBufferMemory,0);
+
+            void* data;
+            vkMapMemory(device,vertexBufferMemory,0,bufferInfo.size,0,&data);
+            memcpy(data,vertices.data(),(size_t)bufferInfo.size);
+            vkUnmapMemory(device,vertexBufferMemory);
+
+        }
+
+
+        //This function will find the memory type that is suitable for the buffer corresponding to the properties and type filter
+        uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties){
+
+            VkPhysicalDeviceMemoryProperties memProperties;
+            vkGetPhysicalDeviceMemoryProperties(physicalDevice,&memProperties);
+
+            for(uint32_t i=0; i<memProperties.memoryTypeCount; i++){
+                if(typeFilter & (1<<i) && (memProperties.memoryTypes[i].propertyFlags & properties)== properties){
+                    return i;
+                }
+            }
+            throw std::runtime_error("failed to find suitable memory type!");
+        }
+
         void createCommandBuffers(){
             commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
             
@@ -765,6 +821,9 @@ class HelloTriangleApplication{
             vkCmdBeginRenderPass(commandBuffer,&renderPassInfo,VK_SUBPASS_CONTENTS_INLINE);
             vkCmdBindPipeline(commandBuffer,VK_PIPELINE_BIND_POINT_GRAPHICS,graphicsPipeline);
 
+            VkBuffer vertexBuffers[]= {vertexBuffer};
+            VkDeviceSize offsets[]={0};
+            vkCmdBindVertexBuffers(commandBuffer,0,1,vertexBuffers,offsets);
 
             VkViewport viewport{};
             {
@@ -782,7 +841,7 @@ class HelloTriangleApplication{
                 .offset={0,0}
             };
             vkCmdSetScissor(commandBuffer,0,1,&scissor);
-            vkCmdDraw(commandBuffer,3,1,0,0);
+            vkCmdDraw(commandBuffer,static_cast<uint32_t>(vertices.size()),1,0,0);
             vkCmdEndRenderPass(commandBuffer);
             
             if(vkEndCommandBuffer(commandBuffer)!=VK_SUCCESS){
@@ -929,6 +988,9 @@ class HelloTriangleApplication{
 
             cleanUpSwapChain();
 
+            vkDestroyBuffer(device,vertexBuffer,nullptr);
+            vkFreeMemory(device,vertexBufferMemory,nullptr);
+
             for(size_t i=0; i<MAX_FRAMES_IN_FLIGHT;++i){
                 vkDestroySemaphore(device,imageAvailableSemaphores[i],nullptr);
                 vkDestroySemaphore(device,renderFinishedSemaphores[i],nullptr);
@@ -995,6 +1057,9 @@ class HelloTriangleApplication{
         std::vector<VkImageView> swapChainImageViews;
         std::vector<VkFramebuffer> swapChainFrameBuffers;
 
+        VkBuffer vertexBuffer;
+        VkDeviceMemory vertexBufferMemory;
+
         VkCommandPool commandPool;
         std::vector<VkCommandBuffer> commandBuffers;
 
@@ -1022,7 +1087,45 @@ class HelloTriangleApplication{
             const bool enableValidationLayers=true;
         #endif
 
-       
+        struct Vertex{
+            glm::vec3 pos;
+            glm::vec3 color;
+
+            static VkVertexInputBindingDescription getBindingDescription(){
+                VkVertexInputBindingDescription bindingDescription{};
+                bindingDescription.binding=0;
+                bindingDescription.stride=sizeof(Vertex);
+                bindingDescription.inputRate=VK_VERTEX_INPUT_RATE_VERTEX;
+
+                return bindingDescription;
+            }
+
+            static std::array<VkVertexInputAttributeDescription,2> getAttributeDescriptions(){
+            std::array<VkVertexInputAttributeDescription,2> attributeDescriptions{};
+
+            attributeDescriptions[0].binding=0;
+            attributeDescriptions[0].location=0;
+            attributeDescriptions[0].format=VK_FORMAT_R32G32B32_SFLOAT;
+            attributeDescriptions[0].offset=offsetof(Vertex,pos);
+
+            attributeDescriptions[1].binding=0;
+            attributeDescriptions[1].location=1;
+            attributeDescriptions[1].format=VK_FORMAT_R32G32B32_SFLOAT;
+            attributeDescriptions[1].offset=offsetof(Vertex,color);
+
+            return attributeDescriptions;
+            }
+        };
+
+      
+
+        //define vertex buffer
+        const std::vector<Vertex> vertices={
+            {{0.0f,-0.5f,0.0f},{1.0f,1.0f,1.0f}},
+            {{0.5f,0.5f,0.0f},{0.0f,1.0f,0.0f}},
+            {{-0.5f,0.5f,0.0f},{0.0f,0.0f,1.0f}}
+        };
+        
 
 };
 
