@@ -726,39 +726,102 @@ class HelloTriangleApplication{
                 }
         }
 
-        void createVertexBuffer(){
+        void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size){
+
+            VkCommandBufferAllocateInfo allocInfo{};
+            {
+                allocInfo.sType=VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+                allocInfo.level=VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+                allocInfo.commandPool=commandPool;
+                allocInfo.commandBufferCount=1;
+            }
+
+            VkCommandBuffer commandBuffer;
+            vkAllocateCommandBuffers(device,&allocInfo,&commandBuffer);
+
+            VkCommandBufferBeginInfo beginInfo{};
+            {
+                beginInfo.sType=VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+                beginInfo.flags=VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+            }
+
+            vkBeginCommandBuffer(commandBuffer,&beginInfo);
+
+                VkBufferCopy copyRegion{};
+                {
+                    copyRegion.srcOffset=0;
+                    copyRegion.dstOffset=0;
+                    copyRegion.size=size;
+                }
+                vkCmdCopyBuffer(commandBuffer,srcBuffer,dstBuffer,1,&copyRegion);
+
+            vkEndCommandBuffer(commandBuffer);
+
+            VkSubmitInfo submitInfo{};
+            {
+                submitInfo.sType=VK_STRUCTURE_TYPE_SUBMIT_INFO;
+                submitInfo.commandBufferCount=1;
+                submitInfo.pCommandBuffers=&commandBuffer;
+            }
+
+            vkQueueSubmit(graphicsQueue,1,&submitInfo,VK_NULL_HANDLE);
+            vkQueueWaitIdle(graphicsQueue); //@TODO: Add fence for copying
+
+            vkFreeCommandBuffers(device,commandPool,1,&commandBuffer);
+
+        }
+
+        void createBuffer(VkDeviceSize size,VkBufferUsageFlags usage,VkMemoryPropertyFlags properties,VkBuffer& buffer,VkDeviceMemory& bufferMemory){
+
             VkBufferCreateInfo bufferInfo{};
             {   
                 bufferInfo.sType=VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-                bufferInfo.size=sizeof(vertices[0])*vertices.size();
-                bufferInfo.usage=VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-                bufferInfo.sharingMode=VK_SHARING_MODE_EXCLUSIVE;
+                bufferInfo.size=size;
+                bufferInfo.usage=usage;
+                bufferInfo.sharingMode=VK_SHARING_MODE_EXCLUSIVE; //owned by a single queue family at a time and ownership must be explicitly transfered before using it in another queue family
                 bufferInfo.flags=0;
             }
-            if(vkCreateBuffer(device,&bufferInfo,nullptr,&vertexBuffer)!=VK_SUCCESS){
+            if(vkCreateBuffer(device,&bufferInfo,nullptr,&buffer)!=VK_SUCCESS){
                 throw std::runtime_error("failed to create vertex buffer!");
             }
 
             VkMemoryRequirements memRequirements;
-            vkGetBufferMemoryRequirements(device,vertexBuffer,&memRequirements);
+            vkGetBufferMemoryRequirements(device,buffer,&memRequirements);
 
             VkMemoryAllocateInfo allocateInfo{};
             {
                 allocateInfo.sType=VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
                 allocateInfo.allocationSize=memRequirements.size;
-                allocateInfo.memoryTypeIndex=findMemoryType(memRequirements.memoryTypeBits,VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT); // @TODO: Test if cached is faster
+                allocateInfo.memoryTypeIndex=findMemoryType(memRequirements.memoryTypeBits, properties); // @TODO: Test if cached is faster
             }
 
-            if(vkAllocateMemory(device,&allocateInfo,nullptr,&vertexBufferMemory)!=VK_SUCCESS){
+            if(vkAllocateMemory(device,&allocateInfo,nullptr,&bufferMemory)!=VK_SUCCESS){
                 throw std::runtime_error("failed to allocate vertex buffer memory!");
             }
 
-            vkBindBufferMemory(device,vertexBuffer,vertexBufferMemory,0);
+            vkBindBufferMemory(device,buffer,bufferMemory,0);
+
+        }
+
+        void createVertexBuffer(){
+
+            VkDeviceSize bufferSize= sizeof(vertices[0])*vertices.size();
+                
+            VkBuffer stagingBuffer;
+            VkDeviceMemory stagingBufferMemory;
+           
+            createBuffer(bufferSize,VK_BUFFER_USAGE_TRANSFER_SRC_BIT,VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,stagingBuffer,stagingBufferMemory);          
 
             void* data;
-            vkMapMemory(device,vertexBufferMemory,0,bufferInfo.size,0,&data);
-            memcpy(data,vertices.data(),(size_t)bufferInfo.size);
-            vkUnmapMemory(device,vertexBufferMemory);
+            vkMapMemory(device,stagingBufferMemory,0,bufferSize,0,&data);
+            memcpy(data,vertices.data(),(size_t)bufferSize);
+            vkUnmapMemory(device,stagingBufferMemory);
+
+            createBuffer(bufferSize,VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,vertexBuffer,vertexBufferMemory);
+            copyBuffer(stagingBuffer,vertexBuffer,bufferSize);
+
+            vkDestroyBuffer(device,stagingBuffer,nullptr);
+            vkFreeMemory(device,stagingBufferMemory,nullptr);
 
         }
 
